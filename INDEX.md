@@ -34,9 +34,9 @@
 </Directory>
 ```
 
-AllowOverride All - включаем проверку каждого запроса через файл .htaccess
-Options -Indexes - отключаем индексацию
-ServerSignatures off - Скрываем информацию о подключении 
+- AllowOverride All - включаем проверку каждого запроса через файл .htaccess
+- Options -Indexes - отключаем индексацию
+- ServerSignatures off - Скрываем информацию о подключении 
 
 Открываем файл настройки доступа от root:
 ```
