@@ -20,6 +20,7 @@ ___
 ```
 ansible-playbook protect-server.yml --ask-become-pass
 ```
+(Далее программа попросит ввести пароль от root пользователя)
 
 Запуск сервера:
 
