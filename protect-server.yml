@@ -1,0 +1,112 @@
+---
+- name: Настройка защиты от dos атак
+  hosts: localhost
+  connection: local
+  become: yes
+  
+  tasks:
+    - name: Установка fail2ban
+      apt:
+        name: fail2ban
+        state: present
+    
+    - name: Установка Apache
+      apt:
+        name: apache2
+        state: present
+    
+    - name: Запуск Apache
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+    
+    - name: Создание универсального конфига jail для всех атак
+      copy:
+        dest: /etc/fail2ban/jail.d/block-fast.conf
+        content: |
+          [block-fast]
+          enabled = true
+          port = http,https
+          filter = block-fast
+          logpath = /var/log/apache2/access.log
+          maxretry = 15
+          findtime = 10
+          bantime = 300
+          action = iptables-allports[name=block-fast]
+    
+    - name: Создание фильтра
+      copy:
+        dest: /etc/fail2ban/filter.d/block-fast.conf
+        content: |
+          [Definition]
+          failregex = ^<HOST> -.*".*".*$
+          ignoreregex = ^127\.0\.0\.1.*$
+    
+    - name: Запуск fail2ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+    
+    - name: Ожидание запуска fail2ban
+      pause:
+        seconds: 3
+    
+    - name: Проверка статуса fail2ban
+      command: fail2ban-client status
+      register: status
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: Проверка jail block-fast
+      command: fail2ban-client status block-fast
+      register: jail_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Установить mod_evasive
+      apt: name=libapache2-mod-evasive state=present
+    
+    - name: Настройка mod_evasive
+      copy:
+        dest: /etc/apache2/mods-available/evasive.conf
+        content: |
+          <IfModule mod_evasive20.c>
+          DOSHashTableSize 3097
+          DOSPageCount 2
+          DOSSiteCount 50
+          DOSPageInterval 1
+          DOSSiteInterval 1
+          DOSBlockingPeriod 10
+          DOSSLowAttackTime 60
+          DOSSLowAttackLimit 100
+          </IfModule>
+    
+    - name: Включение mod_evasive
+      apache2_module:
+        name: evasive
+        state: present
+    
+    - name: Вывод результата
+      debug:
+        msg: |
+          🔧 УСТАНОВКА ЗАВЕРШЕНА!
+          
+          Установлено:
+          ✅ fail2ban
+          ✅ Apache
+          ✅ Конфиг защиты block-fast
+          ✅ mod_evasive
+          
+          {% if status is succeeded %}
+          Общий статус: {{ status.stdout }}
+          {% else %}
+          Общий статус: ❌ fail2ban ещё запускается...
+          {% endif %}
+          
+          {% if jail_status is succeeded %}
+          Jail 'block-fast': {{ jail_status.stdout }}
+          {% else %}
+          Jail 'block-fast': ❌ ещё не активирован
+          {% endif %}
